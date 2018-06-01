@@ -33,7 +33,7 @@ There's two script with similar functions. The API weather website is just diffe
   - UTC zone must be set!!
 
 
-+OpenWeatherMap :
++ OpenWeatherMap :
   - Here, the forecast is by hour, so much accurate and then I prefer to show the round integer between tempMin and Max.
   - The datas are splitted into "current" and "forecast".
 
