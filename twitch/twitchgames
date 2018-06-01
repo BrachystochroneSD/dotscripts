@@ -1,0 +1,88 @@
+#!/bin/bash
+
+# Parameters
+gamesfile=/path/to/your/list/of/favorite/games # this is the list of your favorite games
+clientID=9wba9dk3evmmlxs2xz0xwle0fwr6uc # need to change to your own client ID (check link above)
+gamedatabase=/path/to/your/game/database
+
+get_rid_of_those_fkg_quotes(){
+    ret="${@%\"}"
+    ret="${ret#\"}"
+    echo $ret
+}
+
+check_connected_streams(){ #get a name of game in $1 and check all the streams of this games that are live
+    list_stream_up=""
+    curl -s 'https://api.twitch.tv/kraken/streams?client_id='$clientID'&game='$1 >~/.script/twitch/twitchdata.tmp
+    numberlive=$(cat ~/.script/twitch/twitchdata.tmp | jq ._total)
+    i=0	
+    while [[ ! $i == $numberlive ]]; do
+	check=$(cat ~/.script/twitch/twitchdata.tmp | jq '.streams['$i'].channel.name')
+    	[[ $check == null ]] && break
+	check=$(get_rid_of_those_fkg_quotes $check)
+	language=$(cat ~/.script/twitch/twitchdata.tmp | jq '.streams['$i'].channel.language')
+	language=$(get_rid_of_those_fkg_quotes $language)
+    	list_stream_up="$list_stream_up$language:$check\n"
+        stream_array+=(["$language:$check"]="$check")
+	((i= $i + 1 ))	
+    done
+    rm ~/.script/twitch/twitchdata.tmp
+}
+
+nobodyshit(){
+    echo "Nobody streaming this shit right now"
+    noshit="No streams. Choose an other game:"
+    twitchgamefunction
+}
+
+aborted(){
+    echo "Aborted"
+    rm ~/.script/twitch/.temp &>/dev/null
+    exit
+}
+
+check_and_launch(){
+    gametocheck=$(echo $@)
+    gametocheck=$(python -c "print('$gametocheck'.replace(' ','%20'))")
+    echo "Checking connected streams for $@ ..."
+    check_connected_streams $gametocheck
+    if [[ ! -n $list_stream_up ]];then
+	nobodyshit
+    else
+	rm ~/.script/twitch/.temp &>/dev/null
+	stream=$(echo -e $list_stream_up | dmenu -i -p "Which stream") || aborted
+	stream=${stream_array[$stream]}
+	exec firefox -new-window https://www.twitch.tv/popout/$stream/chat?popout= & mpv https://www.twitch.tv/$stream
+    fi
+}
+
+twitchgamefunction(){        
+    if [[ -n $@ ]]; then
+	check_and_launch $@
+    else	
+	game=$(cat $search_in | dmenu -i -p "$noshit") || aborted
+	if [[ $game == Other ]];then
+	    search_in=$gamedatabase
+	    twitchgamefunction
+	elif [[ $game == Add ]];then
+	    addgame=$(cat $gamedatabase | dmenu -i -p "Which game do you want to add on favorite?") || aborted
+	    echo -e "$addgame" >>$gamesfile
+	    cert=$(echo -e "No\nYes" | dmenu -i -p "Do you want to check streams for $addgame?")
+	    [[ $cert == Yes ]] && check_and_launch $addgame || aborted
+	else
+	    check_and_launch $game
+	fi
+    fi
+}
+
+if ping -q -c 1 -W 1 8.8.8.8 &>/dev/null; then
+    cp $gamesfile ~/.script/twitch/.temp 
+    echo Other >>~/.script/twitch/.temp
+    echo Add >>~/.script/twitch/.temp
+    noshit="Choose a game"
+    search_in=~/.script/twitch/.temp
+    declare -A stream_array
+    twitchgamefunction $@
+else
+    echo "No internet connection"  
+fi

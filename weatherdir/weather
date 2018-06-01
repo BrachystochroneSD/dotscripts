@@ -1,0 +1,83 @@
+#!/bin/bash
+
+appid=819cc5ba7acaa9c1ad13006d67ca242d
+datas=/home/$USER/.script/weatherdir/datas/data
+utc=2
+
+get_rid_of_those_quotes(){
+    ret="${@%\"}"
+    ret="${ret#\"}"
+    echo $ret
+}
+
+icons() {
+    case $1 in
+        "clear-day") icon="";;
+        "clear-night") icon="";;
+        "rain") icon="";;
+        "snow") icon="";;
+        "sleet") icon="";;
+        "wind") icon="";;
+        "fog") icon="";;
+        "cloudy") icon="";;
+        "partly-cloudy-day") icon="";;
+        "partly-cloudy-night") icon="";;
+	"hail") icon= "";;
+	"thunderstorm") icon= "";;
+	"tornado") icon= "";;
+    esac
+
+    echo $icon
+}
+
+ceilshit() {
+    echo $(python -c "from math import ceil; print int(round($1 * $2))")
+}
+
+get_datas(){
+    location=$(curl -s ipinfo.io | jq .loc)
+    location=$(get_rid_of_those_quotes $location)
+    curl -s https://api.darksky.net/forecast/819cc5ba7acaa9c1ad13006d67ca242d/$location?units=ca >$datas
+}
+
+current_weather(){
+    icon=$(cat $datas | jq .currently.icon)
+    icon=$(get_rid_of_those_quotes $icon)
+    humidity=$(cat $datas | jq .currently.humidity) 
+    humidity=$(ceilshit $humidity 100)
+    temp=$(cat $datas | jq .currently.apparentTemperature) 
+    temp=$(ceilshit $temp 1)
+    echo "$(icons "$icon")" $humidity% $temp°C
+}
+
+forecast_weather(){
+    curtimest=$(date +%s)
+    i=0
+    while [ $i -lt 8 ];do
+	timetest=$(cat $datas | jq .daily.data[$i].time)
+	isnow=$(python -c "from math import *; print(($curtimest-($curtimest%86400))-$utc*3600)")
+	(( res= $isnow - $timetest ))
+	if [[ $res == 0 ]];then
+	    break
+	fi
+	((i= $i + 1))
+    done
+
+    icon=$(cat $datas | jq .daily.data[$i].icon)
+    icon=$(get_rid_of_those_quotes $icon)
+    humidity=$(cat $datas | jq .daily.data[$i].humidity) 
+    humidity=$(ceilshit $humidity 100)
+    tempMin=$(cat $datas | jq .daily.data[$i].apparentTemperatureMin) 
+    tempMin=$(ceilshit $tempMin 1)
+    tempMax=$(cat $datas | jq .daily.data[$i].apparentTemperatureMax) 
+    tempMax=$(ceilshit $tempMax 1)
+
+    echo "$(icons "$icon")" $humidity% $tempMin-$tempMax°C    
+}
+
+if ping -q -c 1 -W 1 8.8.8.8 &>/dev/null; then
+    get_datas
+    current_weather
+else
+    forecast_weather
+fi

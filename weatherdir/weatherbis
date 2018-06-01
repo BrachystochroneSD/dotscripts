@@ -1,0 +1,142 @@
+#!/bin/bash
+
+# parameters
+appid=7fd03f521f1f63d4f21335b700747609
+current=~/.script/weatherdir/datas/current
+forecast=~/.script/weatherdir/datas/forecast
+
+icons() {
+    case $1 in
+        "clear sky") icon="";;
+	#rain
+	"light rain") icon="";;
+	"moderate rain") icon="";;
+	"heavy intensity rain") icon="";;
+	"very heavy rain") icon="";;
+	"extreme rain") icon="";;
+	"freezing rain") icon="";;
+	"light intensity shower rain") icon="";;
+	"shower rain") icon="";;
+	"heavy intensity shower rain") icon="";;
+	"ragged shower rain") icon="";;
+	#thunderstorm
+	"thunderstorm with light rain") icon="";;
+	"thunderstorm with rain") icon="";;
+	"thunderstorm with heavy rain") icon="";;
+	"light thunderstorm") icon="";;
+	"thunderstorm") icon="";;
+	"heavy thunderstorm") icon="";;
+	"ragged thunderstorm") icon="";;
+	"thunderstorm with light drizzle") icon="";;
+	"thunderstorm with drizzle") icon="";;
+	"thunderstorm with heavy drizzle") icon="";;
+	#drizzle
+	"light intensity drizzle") icon="";;
+	"drizzle") icon="";;
+	"heavy intensity drizzle") icon="";;
+	"light intensity drizzle rain") icon="";;
+	"drizzle rain") icon="";;
+	"heavy intensity drizzle rain") icon="";;
+	"shower rain and drizzle") icon="";;
+	"heavy shower rain and drizzle") icon="";;
+	"shower drizzle") icon="";;
+	#snow
+	"light snow") icon="";;
+	"snow") icon="";;
+	"heavy snow") icon="";;
+	"sleet") icon="";;
+	"shower sleet") icon="";;
+	"light rain and snow") icon="";;
+	"rain and snow") icon="";;
+	"light shower snow") icon="";;
+	"shower snow") icon="";;
+	"heavy shower snow") icon="";;
+	#atmoshpere
+	"mist") icon="";;
+	"smoke") icon="";;
+	"haze") icon="";;
+	"sand, dust whirls") icon="";;
+	"fog") icon="";;
+	"sand") icon="";;
+	"dust") icon="";;
+	"volcanic ash") icon="";;
+	"squalls") icon="";;
+	"tornado") icon="";;
+	#clouds
+	"few clouds") icon="";;
+	"scattered clouds") icon="";;
+	"broken clouds") icon="";;
+	"overcast clouds") icon="";;
+    esac
+
+    echo $icon
+}
+
+get_rid_of_those_fkg_quotes(){
+    ret="${@%\"}"
+    ret="${ret#\"}"
+    echo $ret
+}
+
+ceil() {
+    echo $(python -c "from math import ceil; print int(round($1))")
+}
+
+
+get_datas(){
+    location=$(curl -s ipinfo.io/geo | jq .loc)
+    lat=$(python -c "print str.split($location,',')[0]")
+    long=$(python -c "print str.split($location,',')[1]")
+    curl -s 'http://api.openweathermap.org/data/2.5/weather?lat='$lat'&lon='$long'&APPID='$appid'&units=metric'>~/.script/weatherdir/datas/current
+    curl -s 'http://api.openweathermap.org/data/2.5/forecast?lat='$lat'&lon='$long'&APPID='$appid'&units=metric'>~/.script/weatherdir/datas/forecast
+}
+
+echocurrent(){
+    icon=$(cat $current | jq .weather[0].description)
+    icon=$(get_rid_of_those_fkg_quotes $icon)
+    humidity=$(cat $current | jq .main.humidity)
+    temp=$(cat $current | jq .main.temp) 
+    temp=$(ceil $temp)
+    echo "$(icons "$icon")" $humidity% $temp°C
+}
+
+echoforecast(){
+	icon=$(cat $forecast | jq .list[$i].weather[0].description)
+	icon=$(get_rid_of_those_fkg_quotes $icon)
+	humidity=$(cat $forecast | jq .list[$i].main.humidity) 
+	humidity=$(ceil $humidity)
+	tempMin=$(cat $forecast | jq .list[$i].main.temp_min) 
+	tempMax=$(cat $forecast | jq .list[$i].main.temp_max) 
+	temp=$(python -c "from math import ceil; print int(round(($tempMin+$tempMax)/2))")
+	echo "$(icons "$icon")" $humidity% $temp°C
+}
+
+checktime(){
+    isnow=$(date +%s)
+    i=0
+    nummax=$(cat $forecast | jq .cnt)
+    while [ $i -le $nummax ];do
+	timetest=$(cat $forecast | jq .list[$i].dt)
+	(( res= $isnow - $timetest ))
+	if [[ $res -le 0 ]];then
+	    break
+	fi
+	((i= $i + 1))
+    done
+    if [ $i == 40 ];then
+	echo "Need Update"
+    elif [ $i == 0 ];then
+	echocurrent
+    else
+	echoforecast
+    fi
+}
+
+#check internet connection
+
+if ping -q -c 1 -W 1 8.8.8.8 &>/dev/null; then
+    get_datas
+    echocurrent
+else
+    checktime
+fi

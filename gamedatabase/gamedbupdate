@@ -1,0 +1,39 @@
+#!/bin/bash
+
+#parameter
+apikey=yourapikey
+database=/path/to/your/game/database
+
+get_rid_of_those_fkg_quotes(){
+    ret="${@%\"}"
+    ret="${ret#\"}"
+    echo $ret
+}
+curl -s 'https://www.giantbomb.com/api/games/?api_key=abda390e015cc8cfba7cf4574fd883b2aeca0081&format=json&field_list=number_of_total_results&offset=0&limit=1' >.games.tmp 
+
+number_max=$(cat ./games.tmp | jq .number_of_total_results)
+offset=$(cat $database | wc -l)
+result=""
+while [ $offset -lt $number_max ]; do
+    echo "Curl giant bomb site with offset="$offset
+    curl -s 'https://www.giantbomb.com/api/games/?api_key='$apikey'&format=json&field_list=name&offset='$offset >~/.script/gamedatabase/games.tmp 
+    i=0
+    gameuh=""
+    res_max=$(cat ./games.tmp | jq .number_of_page_results)
+    while [ $i -lt $res_max ];do
+
+	add_game=$(cat ./games.tmp | jq .results[$i].name)
+	add_game=$(get_rid_of_those_fkg_quotes $add_game)
+	gameuh="$gameuh$add_game\n"
+	((i= $i + 1))
+
+    done
+
+    result="$result$gameuh"
+    (( offset= $offset + 100 ))
+
+done
+
+rm ./games.tmp
+
+echo -e $result | head -n -1 >>$database
