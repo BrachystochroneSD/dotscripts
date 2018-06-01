@@ -1,15 +1,15 @@
 # Twitch Shell Script
 
 This is a simple script that use the twitch api to access streams on twitch without:
-     + Open a Browser
-     + Acceding the Twitch website
-     + Mute all the crap on the front page of the website
-     + Vewing all the shitty ads on the site
-     + Lost 20 minutes of your life doing useless thing just to check if your favorite streamer is live.
+  + Open a Browser
+  + Acceding the Twitch website
+  + Mute all the crap on the front page of the website
+  + Vewing all the shitty ads on the site
+  + Lost 20 minutes of your life doing useless thing just to check if your favorite streamer is live.
 
 All you have to do is run one of the two script
-    + twitchlive: if you want to check the list of your favorite streamer
-    + twitchgames: If you want to check the stream on for a certain game.
+  + twitchlive: if you want to check the list of your favorite streamer
+  + twitchgames: If you want to check the stream on for a certain game.
 
 
 # Dependencies:
