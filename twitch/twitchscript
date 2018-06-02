@@ -1,10 +1,11 @@
 #!/bin/bash
 
-# Parameters
+# Parameters (See README.md)
 
-channelsfile=/home/$USER/.script/twitch/datas/listchanneltwitch
-gamesfile=/home/$USER/.script/twitch/datas/listgamestwitch 
-clientID=9wba9dk3evmmlxs2xz0xwle0fwr6uc
+channelsfile=/path/to/your/list/of/favorite/channel/file
+gamesfile=/path/to/your/list/of/favorite/game/file
+gamedatabase=/path/to/your/game/database/file
+clientID=yourapikey
 
 get_rid_of_those_fkg_quotes(){
     ret="${@%\"}"
@@ -17,22 +18,22 @@ remove_firt_argument(){
     echo $ret
 }
 
-check_connected_streams(){ #get a name of game in $1 and check all the streams of this games that are live
+check_connected_streams(){ #check connected stream for a game
     list_stream_up=""
-    curl -s 'https://api.twitch.tv/kraken/streams?client_id='$clientID'&game='$1 >~/.script/twitch/twitchdata.tmp
-    numberlive=$(cat ~/.script/twitch/twitchdata.tmp | jq ._total)
+    curl -s 'https://api.twitch.tv/kraken/streams?client_id='$clientID'&game='$1 >./twitchdata.tmp
+    numberlive=$(cat ./twitchdata.tmp | jq ._total)
     i=0	
     while [[ ! $i == $numberlive ]]; do
-	check=$(cat ~/.script/twitch/twitchdata.tmp | jq '.streams['$i'].channel.name')
+	check=$(cat ./twitchdata.tmp | jq '.streams['$i'].channel.name')
     	[[ $check == null ]] && break
 	check=$(get_rid_of_those_fkg_quotes $check)
-	language=$(cat ~/.script/twitch/twitchdata.tmp | jq '.streams['$i'].channel.language')
+	language=$(cat ./twitchdata.tmp | jq '.streams['$i'].channel.language')
 	language=$(get_rid_of_those_fkg_quotes $language)
     	list_stream_up="$list_stream_up$language:$check\n"
         stream_array+=(["$language:$check"]="$check")
 	((i= $i + 1 ))	
     done
-    rm ~/.script/twitch/twitchdata.tmp
+    rm ./twitchdata.tmp
 }
 
 nobodyshit(){
@@ -43,7 +44,7 @@ nobodyshit(){
 
 aborted(){
     echo "Aborted"
-    rm ~/.script/twitch/.temp &>/dev/null
+    rm ./.temp &>/dev/null
     exit
 }
 
@@ -55,7 +56,7 @@ check_and_launch(){
     if [[ ! -n $list_stream_up ]];then
 	nobodyshit
     else
-	rm ~/.script/twitch/.temp &>/dev/null
+	rm ./.temp &>/dev/null
 	stream=$(echo -e $list_stream_up | dmenu -i -p "Which stream") || aborted
 	stream=${stream_array[$stream]}
 	exec firefox -new-window https://www.twitch.tv/popout/$stream/chat?popout= & mpv https://www.twitch.tv/$stream
@@ -68,10 +69,10 @@ twitchgamefunction(){
     else	
 	game=$(cat $search_in | dmenu -i -p "$noshit") || aborted
 	if [[ $game == Other ]];then
-	    search_in=~/.script/gamedatabase/gamesdb
+	    search_in=$gamedatabase
 	    twitchgamefunction
 	elif [[ $game == Add ]];then
-	    addgame=$(cat ~/.script/gamedatabase/gamesdb | dmenu -i -p "Which game do you want to add on favorite?") || aborted
+	    addgame=$(cat $gamedatabase | dmenu -i -p "Which game do you want to add on favorite?") || aborted
 	    echo -e "$addgame" >>$gamesfile
 	    cert=$(echo -e "No\nYes" | dmenu -i -p "Do you want to check streams for $addgame?")
 	    [[ $cert == Yes ]] && check_and_launch $addgame || aborted
@@ -94,16 +95,16 @@ twitchlivefunction(){
 	list_stream_up=""
 	echo "Checking connected streams ..."
 	channels=$(cat $channelsfile)
-	curl -s 'https://api.twitch.tv/kraken/streams?client_id='$clientID'&channel='$channels >~/.script/twitch/twitchdata.tmp
-	numberlive=$(cat ~/.script/twitch/twitchdata.tmp | jq ._total)
+	curl -s 'https://api.twitch.tv/kraken/streams?client_id='$clientID'&channel='$channels >./twitchdata.tmp
+	numberlive=$(cat ./twitchdata.tmp | jq ._total)
 	i=0
 	while [[ ! $i == $numberlive ]]; do
-	    check=$(cat ~/.script/twitch/twitchdata.tmp | jq '.streams['$i'].channel.name')
+	    check=$(cat ./twitchdata.tmp | jq '.streams['$i'].channel.name')
 	    check=$(get_rid_of_those_fkg_quotes $check)
 	    list_stream_up="$list_stream_up$check\n"
 	    ((i= $i + 1 ))
 	done
-	rm ~/.script/twitch/twitchdata.tmp
+	rm ./twitchdata.tmp
 	stream=$(echo -e $list_stream_up | dmenu -i -p "Which stream do you want to watch?") || aborted
 	exec firefox -new-window https://www.twitch.tv/popout/$stream/chat?popout= & mpv https://www.twitch.tv/"$stream"
     fi
@@ -115,11 +116,11 @@ if ping -q -c 1 -W 1 8.8.8.8 &>/dev/null; then
 	    twitchlivefunction $2
 	    ;;
 	--game)
-	    cp $gamesfile ~/.script/twitch/.temp 
-	    echo Other >>~/.script/twitch/.temp
-	    echo Add >>~/.script/twitch/.temp
+	    cp $gamesfile ./.temp 
+	    echo Other >>./.temp
+	    echo Add >>./.temp
 	    noshit="Choose a game"
-	    search_in=~/.script/twitch/.temp
+	    search_in=./.temp
 	    declare -A stream_array
 	    stdin=$(remove_firt_argument $@)
 	    twitchgamefunction $stdin

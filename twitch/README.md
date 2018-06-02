@@ -11,6 +11,10 @@ All you have to do is run this script with one of the two options
   + twitchscript --live: if you want to check the list of your favorite streamer that are online
   + twitchscript --game: If you want to check the stream on for a certain game.
 
+# Gif to show the power or that shit
+
+![test](https://media.giphy.com/media/8FffLJPtHZaJ1KDHom/giphy.gif)
+
 # Dependencies:
   + Bash 4
   + mpv (0.14.0)
