@@ -2,15 +2,14 @@
 
 This is a simple script that use the twitch api to access streams on twitch without:
   + Open a Browser
-  + Acceding the Twitch website
-  + Mute all the crap on the front page of the website
-  + Vewing all the shitty ads on the site
-  + Lost 20 minutes of your life doing useless thing just to check if your favorite streamer is live.
+  + Go to the Twitch website by typing on the address bar or clicking on your bookmark
+  + Mute all the crap video that autostart on the front page of twitch
+  + See all the shitty ads
+  + Lost 2 minutes of your life just to check if your favorite streamer is live.
 
-All you have to do is run one of the two script
-  + twitchlive: if you want to check the list of your favorite streamer
-  + twitchgames: If you want to check the stream on for a certain game.
-
+All you have to do is run this script with one of the two options
+  + twitchscript --live: if you want to check the list of your favorite streamer that are online
+  + twitchscript --game: If you want to check the stream on for a certain game.
 
 # Dependencies:
   + Bash 4
@@ -37,7 +36,7 @@ All you have to do is run one of the two script
       Games4
       
       ```
-    + Gamedatabase (cf gamedbupdate script)
+    + Gamedatabase (cf https://github.com/BrachystochroneSD/dotscripts/tree/master/gamedatabase)
     
 # TODO:
-  + Make one unique script
+  + Nothing for now.

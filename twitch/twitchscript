@@ -1,13 +1,19 @@
 #!/bin/bash
 
 # Parameters
-gamesfile=/path/to/your/list/of/favorite/games # this is the list of your favorite games
-clientID=9wba9dk3evmmlxs2xz0xwle0fwr6uc # need to change to your own client ID (check link above)
-gamedatabase=/path/to/your/game/database
+
+channelsfile=/home/$USER/.script/twitch/datas/listchanneltwitch
+gamesfile=/home/$USER/.script/twitch/datas/listgamestwitch 
+clientID=9wba9dk3evmmlxs2xz0xwle0fwr6uc
 
 get_rid_of_those_fkg_quotes(){
     ret="${@%\"}"
     ret="${ret#\"}"
+    echo $ret
+}
+
+remove_firt_argument(){
+    ret="${@#$1}"
     echo $ret
 }
 
@@ -62,10 +68,10 @@ twitchgamefunction(){
     else	
 	game=$(cat $search_in | dmenu -i -p "$noshit") || aborted
 	if [[ $game == Other ]];then
-	    search_in=$gamedatabase
+	    search_in=~/.script/gamedatabase/gamesdb
 	    twitchgamefunction
 	elif [[ $game == Add ]];then
-	    addgame=$(cat $gamedatabase | dmenu -i -p "Which game do you want to add on favorite?") || aborted
+	    addgame=$(cat ~/.script/gamedatabase/gamesdb | dmenu -i -p "Which game do you want to add on favorite?") || aborted
 	    echo -e "$addgame" >>$gamesfile
 	    cert=$(echo -e "No\nYes" | dmenu -i -p "Do you want to check streams for $addgame?")
 	    [[ $cert == Yes ]] && check_and_launch $addgame || aborted
@@ -75,14 +81,53 @@ twitchgamefunction(){
     fi
 }
 
+twitchlivefunction(){
+    if [[ -n $@ ]]; then
+	echo "Checking if $@ is live ..."
+	test=$(curl -s https://api.twitch.tv/kraken/streams/"$@"?client_id=$clientID | jq .stream._id)
+	if [[ ! $test == "null" ]]; then
+	    exec firefox -new-window https://www.twitch.tv/popout/$@/chat?popout= & mpv https://www.twitch.tv/"$@"
+	else
+	    echo "$@ doesn't stream right now"
+	fi
+    else
+	list_stream_up=""
+	echo "Checking connected streams ..."
+	channels=$(cat $channelsfile)
+	curl -s 'https://api.twitch.tv/kraken/streams?client_id='$clientID'&channel='$channels >~/.script/twitch/twitchdata.tmp
+	numberlive=$(cat ~/.script/twitch/twitchdata.tmp | jq ._total)
+	i=0
+	while [[ ! $i == $numberlive ]]; do
+	    check=$(cat ~/.script/twitch/twitchdata.tmp | jq '.streams['$i'].channel.name')
+	    check=$(get_rid_of_those_fkg_quotes $check)
+	    list_stream_up="$list_stream_up$check\n"
+	    ((i= $i + 1 ))
+	done
+	rm ~/.script/twitch/twitchdata.tmp
+	stream=$(echo -e $list_stream_up | dmenu -i -p "Which stream do you want to watch?") || aborted
+	exec firefox -new-window https://www.twitch.tv/popout/$stream/chat?popout= & mpv https://www.twitch.tv/"$stream"
+    fi
+}
+
 if ping -q -c 1 -W 1 8.8.8.8 &>/dev/null; then
-    cp $gamesfile ~/.script/twitch/.temp 
-    echo Other >>~/.script/twitch/.temp
-    echo Add >>~/.script/twitch/.temp
-    noshit="Choose a game"
-    search_in=~/.script/twitch/.temp
-    declare -A stream_array
-    twitchgamefunction $@
+    case $1 in
+	--live)
+	    twitchlivefunction $2
+	    ;;
+	--game)
+	    cp $gamesfile ~/.script/twitch/.temp 
+	    echo Other >>~/.script/twitch/.temp
+	    echo Add >>~/.script/twitch/.temp
+	    noshit="Choose a game"
+	    search_in=~/.script/twitch/.temp
+	    declare -A stream_array
+	    stdin=$(remove_firt_argument $@)
+	    twitchgamefunction $stdin
+	    ;;
+	*)
+	    echo Need an option \"--live\" or \"--game\"
+	    ;;
+    esac
 else
-    echo "No internet connection"  
+    echo "No internet connection"
 fi
