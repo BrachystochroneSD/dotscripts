@@ -43,4 +43,4 @@ All you have to do is run this script with one of the two options
     + Gamedatabase (cf https://github.com/BrachystochroneSD/dotscripts/tree/master/gamedatabase)
     
 # TODO:
-  + Nothing for now.
+  + Use Chatty or Streamlink or something to access the chat without using the browser.
