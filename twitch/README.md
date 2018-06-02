@@ -20,7 +20,7 @@ All you have to do is run this script with one of the two options
   + mpv (0.14.0)
   + youtube-dl
   + firefox (or other browser than can launch url on a new windows)
-  + dmenu (This shit is awesome)
+  + [dmenu](https://tools.suckless.org/dmenu/) (This shit is awesome)
   + internet connection (ok.)
 
 # Parameters:
