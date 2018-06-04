@@ -44,3 +44,4 @@ All you have to do is run this script with one of the two options
     
 # TODO:
   + Use Chatty or Streamlink or something to access the chat without using the browser.
+  + Fix the problem of hosted stream
