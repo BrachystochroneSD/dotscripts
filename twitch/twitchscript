@@ -1,13 +1,11 @@
 #!/bin/bash
 
-
 # Parameters (See README.md)
 
 channelsfile=/path/to/your/list/of/favorite/channel/file
 gamesfile=/path/to/your/list/of/favorite/game/file
 clientID=yourapikey
 gamesdb=/path/to/your/game/database/file
-
 
 nobodyshit(){
     echo "Nobody streaming this shit right now"
