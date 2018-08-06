@@ -1,39 +1,13 @@
 #!/bin/bash
 
+
 # Parameters (See README.md)
 
 channelsfile=/path/to/your/list/of/favorite/channel/file
 gamesfile=/path/to/your/list/of/favorite/game/file
-gamedatabase=/path/to/your/game/database/file
 clientID=yourapikey
+gamesdb=/path/to/your/game/database/file
 
-get_rid_of_those_fkg_quotes(){
-    ret="${@%\"}"
-    ret="${ret#\"}"
-    echo $ret
-}
-
-remove_firt_argument(){
-    ret="${@#$1}"
-    echo $ret
-}
-
-check_connected_streams(){
-    list_stream_up=""
-    twitchdata=$(curl -s 'https://api.twitch.tv/kraken/streams?client_id='$clientID'&game='$1)
-    numberlive=$(echo $twitchdata | jq ._total)
-    i=0	
-    while [[ ! $i == $numberlive ]]; do
-	check=$(echo $twitchdata | jq '.streams['$i'].channel.name')
-    	[[ $check == null ]] && break
-	check=$(get_rid_of_those_fkg_quotes $check)
-	language=$(echo $twitchdata | jq '.streams['$i'].channel.language')
-	language=$(get_rid_of_those_fkg_quotes $language)
-    	list_stream_up="$list_stream_up$language:$check\n"
-        stream_array+=(["$language:$check"]="$check")
-	(( i= $i + 1 ))	
-    done
-}
 
 nobodyshit(){
     echo "Nobody streaming this shit right now"
@@ -50,14 +24,15 @@ check_and_launch(){
     gametocheck=$(echo $@)
     gametocheck=$(python -c "print('$gametocheck'.replace(' ','%20'))")
     echo "Checking connected streams for $@ ..."
-    check_connected_streams $gametocheck
-    if [[ ! -n $list_stream_up ]];then
-	nobodyshit
-    else
-	stream=$(echo -e $list_stream_up | dmenu -i -p "Which stream") || aborted
-	stream=${stream_array[$stream]}
-	exec firefox -new-window https://www.twitch.tv/popout/$stream/chat?popout= & mpv https://www.twitch.tv/$stream
-    fi
+
+    twitchdata=$(curl -s 'https://api.twitch.tv/kraken/streams?client_id='$clientID'&game='$gametocheck)
+    [[ $(echo $twitchdata | jq '._total') == 0 ]] && nobodyshit
+
+    stream=$(echo $twitchdata | jq -r '.streams[] | .channel.language, .channel.name' | awk 'NR%2{printf "%s:",$0;next;}1' | dmenu -i -p "Which stream ?" | sed 's/.*://')
+    [[ ! -n $stream ]] && aborted
+
+    exec firefox -new-window https://www.twitch.tv/popout/$stream/chat?popout= & mpv https://www.twitch.tv/$stream
+    exit
 }
 
 twitchgamefunction(){        
@@ -66,7 +41,7 @@ twitchgamefunction(){
     else	
 	game=$(awk '{print $0} END { printf "Other\nAdd" }' $gamesfile | dmenu -i -p "$noshit") || aborted
 	if [[ $game == Add ]];then
-	    game=$(cat $gamesdb | dmenu -i -p "Which game do you want to add on favorite?") || aborted
+0	    game=$(cat $gamesdb | dmenu -i -p "Which game do you want to add on favorite?") || aborted
 	    echo -e "$game" >>$gamesfile
 	    cert=$(echo -e "No\nYes" | dmenu -i -p "Do you want to check streams for $game?")
 	    [[ $cert == Yes ]] || aborted
@@ -80,27 +55,17 @@ twitchgamefunction(){
 twitchlivefunction(){
     if [[ -n $@ ]]; then
 	echo "Checking if $@ is live ..."
-	test=$(curl -s https://api.twitch.tv/kraken/streams/"$@"?client_id=$clientID | jq .stream._id)
-	if [[ ! $test == "null" ]]; then
-	    exec firefox -new-window https://www.twitch.tv/popout/$@/chat?popout= & mpv https://www.twitch.tv/"$@"
-	else
-	    echo "$@ doesn't stream right now"
-	fi
+	test=$(curl -s https://api.twitch.tv/kraken/streams/"$@"?client_id=$clientID | jq ".stream._id")
+
+	[ ! $test == null ] && (exec firefox -new-window https://www.twitch.tv/popout/$@/chat?popout= & mpv https://www.twitch.tv/"$@") || echo "$@ doesn't stream right now"
+	exit
     else
-	list_stream_up=""
 	echo "Checking connected streams ..."
-	channels=$(cat $channelsfile)
-	twitchdata=$(curl -s 'https://api.twitch.tv/kraken/streams?client_id='$clientID'&channel='$channels)
-	numberlive=$(echo $twitchdata | jq ._total)
-	i=0
-	while [[ ! $i == $numberlive ]]; do
-	    check=$(echo $twitchdata | jq '.streams['$i'].channel.name')
-	    check=$(get_rid_of_those_fkg_quotes $check)
-	    list_stream_up="$list_stream_up$check\n"
-	    ((i= $i + 1 ))
-	done
-	stream=$(echo -e $list_stream_up | dmenu -i -p "Which stream do you want to watch?") || aborted
+	twitchdata=$(curl -s 'https://api.twitch.tv/kraken/streams?client_id='$clientID'&channel='$(cat $channelsfile))
+
+	stream=$(echo $twitchdata | jq -r '.streams[] | .channel.name' | dmenu -i -p "Which stream do you want to watch?") || aborted
 	exec firefox -new-window https://www.twitch.tv/popout/$stream/chat?popout= & mpv https://www.twitch.tv/"$stream"
+	exit
     fi
 }
 
@@ -111,9 +76,7 @@ if ping -q -c 1 -W 1 8.8.8.8 &>/dev/null; then
 	    ;;
 	--game)
 	    noshit="Choose a game"
-	    declare -A stream_array
-	    stdin=$(remove_firt_argument $@)
-	    twitchgamefunction $stdin
+	    twitchgamefunction "${@#$1}"
 	    ;;
 	*)
 	    echo Need an option \"--live\" or \"--game\"
