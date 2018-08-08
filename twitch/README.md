@@ -10,8 +10,9 @@ This is a simple script that use the twitch api to access streams on twitch with
 All you have to do is run this script with one of the two options
   + twitchscript --live: if you want to check the list of your favorite streamer that are online
   + twitchscript --game: If you want to check the stream on for a certain game.
+  + twitchscript --vod: If you want to browse and choose the VODs of a channel.
 
-**You don't even need a twitch account!**
+**YOU DON'T EVEN NEED A TWITCH ACCOUNT!**
 
 # Gif to show the power or that shit
 

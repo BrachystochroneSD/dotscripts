@@ -7,6 +7,10 @@ gamesfile=/path/to/your/list/of/favorite/game/file
 clientID=yourapikey
 gamesdb=/path/to/your/game/database/file
 
+#Number of entry in the dmenu for the twitch vod part
+max_vid=100 
+
+
 nobodyshit(){
     echo "Nobody streaming this shit right now"
     noshit="No streams. Choose an other game:"
@@ -67,6 +71,40 @@ twitchlivefunction(){
     fi
 }
 
+twitchvod_search(){
+    searchingshit=$(python -c "print('"$(cat ~/.script/twitch/datas/listchanneltwitch)"'.replace(',','\n'))" | dmenu -p "TwitchVOD Channel:") || aborted
+    echo "Searching for video on "$searchingshit
+    curl_choose_and_watch
+}
+
+curl_choose_and_watch(){	
+    #curl the api twitch vod search for a channel
+    twitchvod=$(curl -s 'https://api.twitch.tv/kraken/channels/'$searchingshit'/videos?client_id='$clientID'&limit='$max_vid'&offset='$offset)
+    total_vod=$(echo $twitchvod | jq '._total')
+    [[ $total_vod == null || $total_vod == 0 ]] && twitchvod_search
+
+    #create a table with all of the videos and get the url of the chosen one
+    (( borne_max=$total_vod - $max_vid ))
+    video=$(echo $twitchvod | jq -r '.videos[] | .title, .recorded_at' | awk -v bm=$borne_max -v offs=$offset 'BEGIN{ if (offs > 0 ) { printf "Prev\n" } }!(NR%2){printf ("%3d: %-100s %.10s\n", FNR/2+offs, p, $0)}{p=$0}END{ if (offs < bm) { printf "Next" } }' | dmenu -i -l 30 -p "Which video?" | sed 's/:.*//')
+
+    [[ ! -n $video ]] && twitchvod_search
+    if [[ $video == Next ]];then
+	((offset= $offset + 100 ))
+	curl_choose_and_watch
+    elif [[ $video == Prev ]];then
+        ((offset= $offset - 100 ))
+	curl_choose_and_watch
+    else	
+	(( num=$video - 1 - $offset))
+	videourl=$(echo $twitchvod | jq -r '.videos['$num'].url')
+	
+	# ask for the resolution and launch the video with mpv
+	res=$(echo -e "720\n1080\n360" | dmenu -i -p "Which resolution? (if avalaible)") || twitchvod_search
+	mpv --ytdl-format="[height<=?"$res"]" $videourl || twitchvod_search
+	exit
+    fi
+}
+
 if ping -q -c 1 -W 1 8.8.8.8 &>/dev/null; then
     case $1 in
 	--live)
@@ -76,8 +114,12 @@ if ping -q -c 1 -W 1 8.8.8.8 &>/dev/null; then
 	    noshit="Choose a game"
 	    twitchgamefunction "${@#$1}"
 	    ;;
+	--vod)
+	    offset=0
+	    twitchvod_search
+	    ;;
 	*)
-	    echo Need an option \"--live\" or \"--game\"
+	    echo -e "This is the twitch script featuring dmenu and mpv! Heres the options available : \n     --live   To check if your favorites streamers are live\n     --game   To check available streams of a desired game\n     --vod    To check for VOD on a desired channel"
 	    ;;
     esac
 else
