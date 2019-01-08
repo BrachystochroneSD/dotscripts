@@ -1,0 +1,60 @@
+#!/bin/bash
+
+apikey=*YOUR_API_KEY*
+max_results=30
+
+url_encode(){
+    ret=$(echo $@)
+    echo $(python -c "import urllib, sys; print urllib.quote_plus(sys.argv[1])" "$ret")
+}
+
+aborted(){
+    echo "Aborted"
+    exit
+}
+
+get_channel_id(){
+    channoulname=$(url_encode $channelname)
+    channelsearch=$(curl -s 'https://www.googleapis.com/youtube/v3/search?q='$channoulname'&type=channel&maxResults=25&part=snippet&key='$apikey)
+
+    chanchoice=$(echo $channelsearch | jq -r '.items[] | .snippet.channelTitle' | awk '{printf ("%2d: %s\n",NR,$0)}' | dmenu -l 10 -i -p 'Which channel ?' | sed 's/:.*//')
+    [[ ! -n $chanchoice ]] && youtube_search
+    (( numchan= $chanchoice - 1 ))
+    channelID=$(echo $channelsearch | jq -r '.items['$numchan'].snippet.channelId')
+}
+
+youtube_search(){
+    channelID=""
+    searchingshit=$(cat ~/.script/youtube/datas/searchhistory | awk '{print$0}END{printf "\n\nChannel option"}' | dmenu -i -l 20 -p "Youtube search:") || aborted
+    if [[ $searchingshit == 'Channel option' ]];then
+	channelname=$(echo | dmenu -p "Channel Search") || youtube_search
+        get_channel_id
+	searchingshit=$(echo | dmenu -i -l 20 -p "Search on this channel:") || youtube_search 
+    fi
+    echo $searchingshit >~/.script/youtube/datas/searchhistory
+
+    echo "Searching for "$searchingshit
+    searchingshit=$(url_encode $searchingshit)
+    if [[ ! -n $channelID ]];then
+	curly='https://www.googleapis.com/youtube/v3/search?q='$searchingshit'&type=video&maxResults='$max_results'&part=snippet&key='$apikey
+    else
+	curly='https://www.googleapis.com/youtube/v3/search?q='$searchingshit'&type=video&maxResults='$max_results'&part=snippet&key='$apikey'&channelId='$channelID
+    fi    
+
+    youtubesearchdata=$(curl -s $curly)
+
+    video=$(echo $youtubesearchdata | jq -r '.items[] | .snippet.title, .snippet.channelTitle, .snippet.publishedAt' | awk '{printf ("%.85s\n",$0)}' | awk '(NR%3==1){name=$0}(NR%3==2){date=$0}(NR%3==0){printf ("%2d: %-90s %-30s %.10s \n", NR/3, name, date, $0)}' | dmenu -l 30 -i -p 'YTSearch' | sed 's/:.*//')
+    [[ ! -n $video ]] && youtube_search
+    (( num= $video - 1 ))
+    videoID=$(echo $youtubesearchdata | jq -r '.items['$num'].id.videoId')
+
+    res=$(echo -e "720\n1080\n360" | dmenu -i -p "Which resolution? (if avalaible)") || youtube_search
+    mpv --ytdl-format="[height<=?"$res"]" 'https://www.youtube.com/watch?v='$videoID    
+    exit
+}
+
+if ping -q -c 1 -W 1 1.1.1.1 &>/dev/null; then
+    youtube_search
+else
+    echo "No internet connection"
+fi
